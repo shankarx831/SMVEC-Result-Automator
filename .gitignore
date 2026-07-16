@@ -1,0 +1,25 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environment
+venv/
+.venv/
+env/
+ENV/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# User Uploads & Processing directories
+uploads/
+Results/
+static/results/
+data/
+
+# Temporary files
+temp.png
+temp_*.png
