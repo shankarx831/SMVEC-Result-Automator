@@ -263,10 +263,18 @@ def generate():
         elif 'dob' in header or 'date of birth' in header or 'birth' in header:
             col_dob = c
             
+    # Calculate actual number of valid student rows (avoids openpyxl ghost rows issue)
+    actual_student_count = 0
+    for r in range(2, num_rows + 1):
+        if worksheet.cell(row=r, column=col_name).value or worksheet.cell(row=r, column=col_reg).value:
+            actual_student_count += 1
+            
     # Track dynamic subjects to align columns perfectly
     subject_cols = {}
     current_max_col = worksheet.max_column
     sgpa_tracker = {}
+    
+    processed_count = 0
     
     try:
         while idx <= num_rows:
@@ -277,10 +285,11 @@ def generate():
             if not name and not reg_no:
                 idx += 1
                 continue
-
+                
+            processed_count += 1
             reg_no = str(reg_no).strip()
             dob_formatted = convert_date(dob)
-            processing_status = f"Processing {idx-1}/{num_rows-1}: {name or ''} ({reg_no})"
+            processing_status = f"Processing {processed_count}/{actual_student_count}: {name or ''} ({reg_no})"
 
             try:
                 rows, sgpa, student_name, meta_info, err = card_generator.fetch_and_parse_result(
