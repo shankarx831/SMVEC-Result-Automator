@@ -1,5 +1,5 @@
-import psycopg2
-import psycopg2.extras
+import psycopg
+from psycopg.rows import dict_row
 import os
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
@@ -14,7 +14,7 @@ def get_db_connection():
         return None
         
     try:
-        conn = psycopg2.connect(db_url, cursor_factory=psycopg2.extras.DictCursor)
+        conn = psycopg.connect(db_url, row_factory=dict_row)
         return conn
     except Exception as e:
         print(f"Failed to connect to database: {e}")
@@ -85,7 +85,7 @@ def create_user(username, password, role='user'):
             )
         conn.commit()
         return True
-    except psycopg2.IntegrityError:
+    except psycopg.IntegrityError:
         conn.rollback()
         return False
     except Exception as e:
@@ -195,8 +195,7 @@ def get_user_history(user_id):
             ''', (user_id,))
             history = cursor.fetchall()
             
-            # Since psycopg2 returns datetime objects for TIMESTAMP columns, 
-            # we need to convert them to strings to be compatible with our Jinja filter
+            # Convert datetime objects to strings
             result = []
             for row in history:
                 row_dict = dict(row)
