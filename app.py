@@ -262,6 +262,11 @@ def generate():
             col_reg = c
         elif 'dob' in header or 'date of birth' in header or 'birth' in header:
             col_dob = c
+            
+    # Track dynamic subjects to align columns perfectly
+    subject_cols = {}
+    current_max_col = worksheet.max_column
+    sgpa_tracker = {}
     
     try:
         while idx <= num_rows:
@@ -291,23 +296,20 @@ def generate():
 
                     # 1. Extract grades if Excel option is selected
                     if gen_excel and rows:
-                        result_data = {}
                         for r_col in rows:
                             if len(r_col) >= 6:
                                 sub_name = r_col[2]
-                                grade_val = r_col[3]
-                                result_data[sub_name] = grade_val
-                            elif len(r_col) >= 2:
-                                result_data[r_col[0]] = r_col[1]
-
-                        col_mark = 4
-                        for sub, grade in result_data.items():
-                            worksheet.cell(row=1, column=col_mark).value = sub
-                            worksheet.cell(row=idx, column=col_mark).value = grade
-                            col_mark += 1
-
-                        worksheet.cell(row=1, column=col_mark).value = "SGPA"
-                        worksheet.cell(row=idx, column=col_mark).value = sgpa
+                                grade_val = r_col[4] # Index 4 is the Letter Grade (e.g. A, S)
+                                
+                                if sub_name not in subject_cols:
+                                    current_max_col += 1
+                                    subject_cols[sub_name] = current_max_col
+                                    worksheet.cell(row=1, column=current_max_col).value = sub_name
+                                    
+                                worksheet.cell(row=idx, column=subject_cols[sub_name]).value = grade_val
+                                
+                        if sgpa:
+                            sgpa_tracker[idx] = sgpa
 
                     # 2. Take exact result card picture and add to Word doc if selected
                     if gen_word and rows:
@@ -334,6 +336,13 @@ def generate():
         if gen_word and len(doc.paragraphs) > 0 and doc.paragraphs[0].text.strip() == "":
             p = doc.paragraphs[0]
             p._element.getparent().remove(p._element)
+
+        # Write SGPA column dynamically at the very end
+        if gen_excel and sgpa_tracker:
+            sgpa_col_idx = current_max_col + 1
+            worksheet.cell(row=1, column=sgpa_col_idx).value = "SGPA"
+            for row_idx, sgpa_val in sgpa_tracker.items():
+                worksheet.cell(row=row_idx, column=sgpa_col_idx).value = sgpa_val
 
         # Save output assets
         if gen_excel:
