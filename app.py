@@ -176,7 +176,10 @@ def logout():
 @admin_required
 def admin():
     users = db.get_all_users()
-    return render_template('admin.html', users=users, current_username=session.get('username'))
+    error = None
+    if not users and not db.get_db_connection():
+        error = "CRITICAL ERROR: Failed to connect to Supabase Database. Check your DATABASE_URL in Render."
+    return render_template('admin.html', users=users, current_username=session.get('username'), error=error)
 
 @app.route('/admin/create', methods=['POST'])
 @admin_required
