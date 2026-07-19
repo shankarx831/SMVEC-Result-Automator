@@ -198,6 +198,28 @@ def admin_delete_user(user_id):
     users = db.get_all_users()
     return render_template('admin.html', users=users, current_username=session.get('username'), success=f"User '{target_user['username']}' deleted successfully.")
 
+@app.route('/admin/reset_password/<int:user_id>', methods=['POST'])
+@admin_required
+def admin_reset_password(user_id):
+    new_password = request.form.get('new_password', '')
+    users = db.get_all_users()
+    
+    if len(new_password) < 6:
+        return render_template('admin.html', users=users, current_username=session.get('username'), error="Password must be at least 6 characters.")
+        
+    target_user = None
+    for u in users:
+        if u['id'] == user_id:
+            target_user = u
+            break
+            
+    if not target_user:
+        return render_template('admin.html', users=users, current_username=session.get('username'), error="User not found.")
+        
+    db.update_password(user_id, new_password)
+    users = db.get_all_users()
+    return render_template('admin.html', users=users, current_username=session.get('username'), success=f"Password for '{target_user['username']}' updated successfully.")
+
 @app.route('/status')
 @login_required
 def status():

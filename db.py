@@ -113,6 +113,13 @@ def delete_user(user_id):
     conn.commit()
     conn.close()
 
+def update_password(user_id, new_password):
+    hashed_password = generate_password_hash(new_password)
+    conn = get_db_connection()
+    conn.execute('UPDATE users SET password_hash = ? WHERE id = ?', (hashed_password, user_id))
+    conn.commit()
+    conn.close()
+
 def increment_generation_count(username, excel_inc=0, word_inc=0):
     username = username.strip().lower()
     conn = get_db_connection()

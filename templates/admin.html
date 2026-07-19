@@ -315,6 +315,10 @@
                                     {% endif %}
                                 </td>
                                 <td>
+                                    <form action="/admin/reset_password/{{ user.id }}" method="POST" style="display:inline-block; margin-right: 10px;" onsubmit="return confirm('Reset password for {{ user.username }}?');">
+                                        <input type="password" name="new_password" placeholder="New Pass" required style="width: 80px; padding: 3px 6px; font-size: 0.75rem; border: 1px solid #e7e5e4; border-radius: 4px;">
+                                        <button type="submit" class="btn-delete" style="color: #0284c7; text-decoration: none; padding-left: 4px;">Reset</button>
+                                    </form>
                                     {% if user.username == 'admin' or user.username == current_username %}
                                         <button class="btn-delete" disabled title="Cannot delete system admin or self">Delete</button>
                                     {% else %}
