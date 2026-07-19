@@ -2,6 +2,24 @@ import os
 import sys
 import subprocess
 
+# Auto-create and run inside a virtual environment if executed globally (PEP 668 bypass)
+def ensure_venv():
+    if sys.prefix == sys.base_prefix:
+        venv_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "venv")
+        if not os.path.exists(venv_dir):
+            print("Creating virtual environment...")
+            subprocess.check_call([sys.executable, "-m", "venv", venv_dir])
+        
+        if os.name == 'nt':
+            venv_python = os.path.join(venv_dir, "Scripts", "python.exe")
+        else:
+            venv_python = os.path.join(venv_dir, "bin", "python")
+        
+        print("Re-starting app within virtual environment...")
+        os.execv(venv_python, [venv_python] + sys.argv)
+
+ensure_venv()
+
 # Auto-install dependencies if any required libraries are missing
 try:
     import flask
