@@ -23,3 +23,9 @@ data/
 # Temporary files
 temp.png
 temp_*.png
+
+# SQLite Database
+database.db
+
+# Environment Secrets
+.env

@@ -379,6 +379,19 @@
 <body>
 
     <div class="page-wrapper">
+        <!-- Top Navigation Bar -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; border-bottom: 1px solid #e7e5e4; padding-bottom: 12px; font-size: 0.8125rem; color: #78716c;">
+            <div>
+                Signed in as <strong style="color: #1c1917;">{{ username }}</strong>
+            </div>
+            <div style="display: flex; gap: 16px; align-items: center;">
+                {% if role == 'admin' %}
+                    <a href="/admin" style="color: #2563eb; text-decoration: none; font-weight: 600;">⚙️ Admin Panel</a>
+                {% endif %}
+                <a href="/logout" style="color: #dc2626; text-decoration: none; font-weight: 600;">Logout</a>
+            </div>
+        </div>
+
         <div class="page-header">
             <h1>SMVEC Result Automator</h1>
             <p>Fetch exam results from the SMVEC portal and compile them into spreadsheets or Word documents automatically.</p>
@@ -440,6 +453,34 @@
                     <p>Your sheet needs these three columns: Name, Register No, and Date of Birth (DD.MM.YYYY).</p>
                 </div>
                 <img src="/static/images/excel_format_preview.jpg" alt="Expected spreadsheet format showing Name, Register No, and Date of Birth columns">
+            </div>
+
+            <!-- History Card -->
+            <div class="card" style="margin-top: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #f5f5f4;">
+                    <h3 style="font-size: 0.8125rem; font-weight: 600; color: #1c1917;">Your Generated Files</h3>
+                    <span style="font-size: 0.75rem; color: #78716c;">Storage Quota: 50MB (FIFO)</span>
+                </div>
+                {% if history %}
+                    <div style="max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+                        {% for file in history %}
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #fafaf9; border: 1px solid #e7e5e4; border-radius: 8px; font-size: 0.8125rem;">
+                                <div style="display: flex; flex-direction: column; gap: 2px; max-width: 70%;">
+                                    <span style="font-weight: 600; color: #1c1917; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ file.filename }}">
+                                        {{ '📊' if file.file_type == 'excel' else '📝' }} {{ file.filename }}
+                                    </span>
+                                    <span style="font-size: 0.6875rem; color: #a8a29e;">{{ file.timestamp }}</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 12px;">
+                                    <span style="color: #78716c; font-variant-numeric: tabular-nums; font-size: 0.75rem;">{{ file.size }}</span>
+                                    <a href="/download/{{ file.filename }}" style="color: #16a34a; font-weight: 600; text-decoration: none;" download>Download</a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p style="font-size: 0.8125rem; color: #78716c; text-align: center; padding: 12px 0;">No files generated yet.</p>
+                {% endif %}
             </div>
         </div>
 

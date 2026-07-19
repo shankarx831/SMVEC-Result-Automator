@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Management - Admin Panel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: #f5f5f4;
+            color: #1c1917;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+            padding: 40px 24px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .page-wrapper {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        /* Top Nav */
+        .top-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+            border-bottom: 1px solid #e7e5e4;
+            padding-bottom: 16px;
+        }
+
+        .top-nav h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .top-nav-actions {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .nav-link {
+            font-size: 0.875rem;
+            color: #78716c;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .nav-link:hover {
+            color: #1c1917;
+        }
+
+        .btn-logout {
+            background: none;
+            border: 1px solid #e7e5e4;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: #78716c;
+            transition: all 0.15s;
+        }
+
+        .btn-logout:hover {
+            background: #fafaf9;
+            color: #1c1917;
+            border-color: #d6d3d1;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 28px;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: #fff;
+            border: 1px solid #e7e5e4;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+        }
+
+        .card h2 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #f5f5f4;
+        }
+
+        /* Form elements */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            color: #44403c;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .text-input, .select-input {
+            width: 100%;
+            background: #fafaf9;
+            border: 1.5px solid #e7e5e4;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-family: inherit;
+            font-size: 0.875rem;
+            color: #1c1917;
+        }
+
+        .text-input:focus, .select-input:focus {
+            outline: none;
+            border-color: #a8a29e;
+        }
+
+        .btn-submit {
+            width: 100%;
+            background: #16a34a;
+            border: none;
+            border-radius: 8px;
+            padding: 10px;
+            color: white;
+            font-size: 0.875rem;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .btn-submit:hover {
+            background: #15803d;
+        }
+
+        /* Table */
+        .user-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.875rem;
+        }
+
+        .user-table th, .user-table td {
+            text-align: left;
+            padding: 10px 12px;
+            border-bottom: 1px solid #f5f5f4;
+        }
+
+        .user-table th {
+            font-weight: 600;
+            color: #78716c;
+            background: #fafaf9;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .role-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.6875rem;
+            font-weight: 600;
+        }
+
+        .role-badge.admin {
+            background: #ffe4e6;
+            color: #e11d48;
+        }
+
+        .role-badge.user {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .btn-delete {
+            background: none;
+            border: none;
+            color: #dc2626;
+            cursor: pointer;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            text-decoration: underline;
+        }
+
+        .btn-delete:hover {
+            color: #991b1b;
+        }
+
+        .btn-delete:disabled {
+            color: #d6d3d1;
+            text-decoration: none;
+            cursor: not-allowed;
+        }
+
+        .alert {
+            padding: 10px 14px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 0.8125rem;
+        }
+
+        .alert.error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+        }
+
+        .alert.success {
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #16a34a;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="page-wrapper">
+        <div class="top-nav">
+            <h1>Admin Panel: User Management</h1>
+            <div class="top-nav-actions">
+                <a href="/" class="nav-link">← Main App</a>
+                <form action="/logout" method="GET" style="display: inline;">
+                    <button type="submit" class="btn-logout">Logout</button>
+                </form>
+            </div>
+        </div>
+
+        {% if error %}
+            <div class="alert error">{{ error }}</div>
+        {% endif %}
+        {% if success %}
+            <div class="alert success">{{ success }}</div>
+        {% endif %}
+
+        <div class="grid">
+            <!-- Left Card: Add User -->
+            <div class="card">
+                <h2>Create User</h2>
+                <form method="POST" action="/admin/create">
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" name="username" class="text-input" placeholder="e.g. jdoe" required autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" class="text-input" placeholder="Min 6 characters" required autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label for="role">Role</label>
+                        <select id="role" name="role" class="select-input">
+                            <option value="user">Regular User</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-submit">Add User</button>
+                </form>
+            </div>
+
+            <!-- Right Card: Users List -->
+            <div class="card">
+                <h2>All Users</h2>
+                <table class="user-table">
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Role</th>
+                            <th style="text-align: center;">Excel Runs</th>
+                            <th style="text-align: center;">Word Runs</th>
+                            <th style="text-align: center;">Storage Used</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                            <tr>
+                                <td style="font-weight: 500;">{{ user.username }}</td>
+                                <td>
+                                    <span class="role-badge {{ user.role }}">{{ user.role }}</span>
+                                </td>
+                                <td style="text-align: center; font-variant-numeric: tabular-nums; font-weight: 500; color: #44403c;">
+                                    {{ user.excel_count }}
+                                </td>
+                                <td style="text-align: center; font-variant-numeric: tabular-nums; font-weight: 500; color: #44403c;">
+                                    {{ user.word_count }}
+                                </td>
+                                <td style="text-align: center; font-variant-numeric: tabular-nums; font-size: 0.8125rem; font-weight: 500; color: #44403c;">
+                                    {% if user.storage_used >= 1024 * 1024 %}
+                                        {{ (user.storage_used / (1024 * 1024))|round(2) }} MB
+                                    {% else %}
+                                        {{ (user.storage_used / 1024)|round(2) }} KB
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.username == 'admin' or user.username == current_username %}
+                                        <button class="btn-delete" disabled title="Cannot delete system admin or self">Delete</button>
+                                    {% else %}
+                                        <form action="/admin/delete/{{ user.id }}" method="POST" onsubmit="return confirm('Are you sure you want to delete user \'{{ user.username }}\'?');" style="display:inline;">
+                                            <button type="submit" class="btn-delete">Delete</button>
+                                        </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>

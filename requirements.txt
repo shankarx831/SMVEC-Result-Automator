@@ -19,3 +19,8 @@ urllib3==2.2.2
 websocket-client==1.8.0
 wsproto==1.2.0
 Flask==3.0.3
+python-dotenv==1.0.1
+requests==2.32.3
+beautifulsoup4==4.12.3
+gunicorn==22.0.0
+
