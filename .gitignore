@@ -29,3 +29,12 @@ database.db
 
 # Environment Secrets
 .env
+
+# Test and Debug Scripts
+*dump*.html
+test_*.py
+test_*.docx
+test_*.xlsx
+test_*.png
+upload_test.py
+tiny.xlsx
