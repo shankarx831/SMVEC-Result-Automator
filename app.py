@@ -64,9 +64,14 @@ load_dotenv()
 db.init_db()
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'smvec-result-generation-session-secret')
+# Use a strong random key if FLASK_SECRET_KEY is not set in environment (prevents session hijacking)
+app.secret_key = os.environ.get('FLASK_SECRET_KEY') or os.urandom(24)
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads')
 app.config['RESULTS_FOLDER'] = os.path.join(app.root_path, 'static', 'results')
+ALLOWED_EXTENSIONS = {'xlsx'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 # Ensure directories exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -208,6 +213,9 @@ def generate():
     file = request.files['file']
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
+        
+    if not allowed_file(file.filename):
+        return jsonify({"error": "Invalid file type. Only .xlsx files are allowed."}), 400
 
     portal_url = request.form.get('url', 'http://exam.smvec.ac.in/exam_result_ug_pg_apr2026_regular/').strip()
     gen_excel = request.form.get('gen_excel') == 'true'
@@ -393,4 +401,4 @@ if __name__ == '__main__':
     if not os.environ.get("WERKZEUG_RUN_MAIN"):
         Timer(1.5, open_browser).start()
 
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=False)

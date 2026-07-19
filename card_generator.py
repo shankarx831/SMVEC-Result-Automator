@@ -87,8 +87,6 @@ def fetch_and_parse_result(session, portal_url, reg_no, dob_formatted, submit_bt
 
     r = session.post(portal_url, data=payload, headers=headers, timeout=12)
     soup = BeautifulSoup(r.text, 'html.parser')
-    with open("actual_dump.html", "w") as f:
-        f.write(soup.prettify())
 
 
 

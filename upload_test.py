@@ -14,7 +14,7 @@ def run_upload():
         
     # 2. Upload file
     upload_url = "http://localhost:5001/generate"
-    filepath = "/Users/shankar/Projects/Vanaja Mam/smvec-result-generation/tiny.xlsx"
+    filepath = "/Users/shankar/Projects/Vanaja Mam/smvec-result-automator-old/DOB - III C .xlsx"
     files = {'file': open(filepath, 'rb')}
     data = {
         'url': 'http://exam.smvec.ac.in/exam_result_ug_pg_apr2026_regular/',
