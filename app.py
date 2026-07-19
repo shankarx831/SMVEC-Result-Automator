@@ -55,6 +55,8 @@ from werkzeug.security import check_password_hash
 import db
 from dotenv import load_dotenv
 import requests
+import re
+from datetime import datetime, timedelta
 import card_generator
 
 # Load configurations from .env file
@@ -64,10 +66,26 @@ load_dotenv()
 db.init_db()
 
 app = Flask(__name__)
-# Use a strong random key if FLASK_SECRET_KEY is not set in environment (prevents session hijacking)
-app.secret_key = os.environ.get('FLASK_SECRET_KEY') or os.urandom(24)
+# The secret key is needed to keep the client-side sessions secure.
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'default-dev-key')
 app.config['UPLOAD_FOLDER'] = os.path.join(app.root_path, 'uploads')
 app.config['RESULTS_FOLDER'] = os.path.join(app.root_path, 'static', 'results')
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024  # Max 5MB uploads
+
+# Custom Jinja Filter for converting UTC from SQLite to IST (Indian Standard Time)
+@app.template_filter('to_ist')
+def to_ist_filter(utc_time_str):
+    if not utc_time_str:
+        return ""
+    try:
+        utc_time = datetime.strptime(utc_time_str, '%Y-%m-%d %H:%M:%S')
+        ist_time = utc_time + timedelta(hours=5, minutes=30)
+        return ist_time.strftime('%d %b %Y, %I:%M %p')
+    except Exception:
+        return utc_time_str
+
+# Suppress insecure request warnings if fetching without SSL verification
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 ALLOWED_EXTENSIONS = {'xlsx'}
 
 def allowed_file(filename):

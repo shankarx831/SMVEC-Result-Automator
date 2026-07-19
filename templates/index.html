@@ -469,7 +469,7 @@
                                     <span style="font-weight: 600; color: #1c1917; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="{{ file.filename }}">
                                         {{ '📊' if file.file_type == 'excel' else '📝' }} {{ file.filename }}
                                     </span>
-                                    <span style="font-size: 0.6875rem; color: #a8a29e;">{{ file.timestamp }}</span>
+                                    <span style="font-size: 0.6875rem; color: #a8a29e;">{{ file.timestamp | to_ist }}</span>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 12px;">
                                     <span style="color: #78716c; font-variant-numeric: tabular-nums; font-size: 0.75rem;">{{ file.size }}</span>
