@@ -307,8 +307,12 @@ def generate():
                         card_generator.draw_result_card(reg_no, display_name, meta_info, rows, sgpa, temp_img_path)
 
                         doc.add_heading(f'{reg_no} {display_name}', level=4)
-                        doc.add_picture(temp_img_path, width=Inches(6.0))
-                        doc.add_page_break()
+                        p_pic = doc.add_picture(temp_img_path, width=Inches(6.0))
+                        
+                        # Add page break to the end of the picture paragraph instead of a new paragraph
+                        # to avoid empty lines at the top of the next page
+                        from docx.enum.text import WD_BREAK
+                        doc.paragraphs[-1].add_run().add_break(WD_BREAK.PAGE)
 
                         if os.path.exists(temp_img_path):
                             os.remove(temp_img_path)
@@ -317,6 +321,11 @@ def generate():
                 print(f"Error processing record row {idx} ({reg_no}): {inner_err}")
 
             idx += 1
+
+        # Remove the very first empty paragraph created by default if it's empty
+        if gen_word and len(doc.paragraphs) > 0 and doc.paragraphs[0].text.strip() == "":
+            p = doc.paragraphs[0]
+            p._element.getparent().remove(p._element)
 
         # Save output assets
         if gen_excel:
