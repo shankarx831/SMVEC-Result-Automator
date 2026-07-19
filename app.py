@@ -370,10 +370,8 @@ def generate():
                         doc.add_heading(f'{reg_no} {display_name}', level=4)
                         p_pic = doc.add_picture(temp_img_path, width=Inches(6.0))
                         
-                        # Add page break to the end of the picture paragraph instead of a new paragraph
-                        # to avoid empty lines at the top of the next page
-                        from docx.enum.text import WD_BREAK
-                        doc.paragraphs[-1].add_run().add_break(WD_BREAK.PAGE)
+                        # Add a proper page break to avoid the square box bug
+                        doc.add_page_break()
 
                         if os.path.exists(temp_img_path):
                             os.remove(temp_img_path)
