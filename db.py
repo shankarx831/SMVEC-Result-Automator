@@ -1,4 +1,5 @@
-import sqlite3
+import psycopg2
+import psycopg2.extras
 import os
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
@@ -6,83 +7,90 @@ from dotenv import load_dotenv
 # Load env variables if .env file exists
 load_dotenv()
 
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'database.db')
-
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    db_url = os.environ.get('DATABASE_URL')
+    if not db_url:
+        print("WARNING: DATABASE_URL environment variable is missing!")
+        return None
+        
+    try:
+        conn = psycopg2.connect(db_url, cursor_factory=psycopg2.extras.DictCursor)
+        return conn
+    except Exception as e:
+        print(f"Failed to connect to database: {e}")
+        return None
 
 def init_db():
     conn = get_db_connection()
-    # Create users table
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            role TEXT NOT NULL DEFAULT 'user',
-            excel_count INTEGER DEFAULT 0,
-            word_count INTEGER DEFAULT 0
-        )
-    ''')
-    conn.commit()
-
-    # Create history table
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS history (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER,
-            filename TEXT NOT NULL,
-            filepath TEXT NOT NULL,
-            filesize INTEGER NOT NULL,
-            file_type TEXT NOT NULL,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-        )
-    ''')
-    conn.commit()
-
-    # Migration: Add excel_count and word_count if they do not exist
+    if not conn: return
+    
     try:
-        conn.execute('ALTER TABLE users ADD COLUMN excel_count INTEGER DEFAULT 0')
+        with conn.cursor() as cursor:
+            # Create users table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    id SERIAL PRIMARY KEY,
+                    username VARCHAR(255) UNIQUE NOT NULL,
+                    password_hash VARCHAR(255) NOT NULL,
+                    role VARCHAR(50) NOT NULL DEFAULT 'user',
+                    excel_count INTEGER DEFAULT 0,
+                    word_count INTEGER DEFAULT 0
+                )
+            ''')
+            
+            # Create history table
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS history (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER,
+                    filename VARCHAR(255) NOT NULL,
+                    filepath VARCHAR(512) NOT NULL,
+                    filesize INTEGER NOT NULL,
+                    file_type VARCHAR(50) NOT NULL,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+                )
+            ''')
+            
+            # Create default admin if not exists
+            admin_username = os.environ.get('DEFAULT_ADMIN_USER', 'admin').strip().lower()
+            admin_password = os.environ.get('DEFAULT_ADMIN_PASSWORD', 'admin123')
+            
+            cursor.execute('SELECT * FROM users WHERE role = %s', ('admin',))
+            if not cursor.fetchone():
+                hashed_password = generate_password_hash(admin_password)
+                cursor.execute(
+                    'INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)',
+                    (admin_username, hashed_password, 'admin')
+                )
+                print(f"Initialized Postgres database with default admin account ('{admin_username}' / '{admin_password}').")
         conn.commit()
-    except sqlite3.OperationalError:
-        pass
-    try:
-        conn.execute('ALTER TABLE users ADD COLUMN word_count INTEGER DEFAULT 0')
-        conn.commit()
-    except sqlite3.OperationalError:
-        pass
-
-    # Create default admin if not exists
-    admin_username = os.environ.get('DEFAULT_ADMIN_USER', 'admin').strip().lower()
-    admin_password = os.environ.get('DEFAULT_ADMIN_PASSWORD', 'admin123')
-
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM users WHERE role = ?', ('admin',))
-    if not cursor.fetchone():
-        hashed_password = generate_password_hash(admin_password)
-        conn.execute(
-            'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',
-            (admin_username, hashed_password, 'admin')
-        )
-        conn.commit()
-        print(f"Initialized database with default admin account ('{admin_username}' / '{admin_password}').")
-    conn.close()
+    except Exception as e:
+        print(f"Error initializing database schema: {e}")
+        conn.rollback()
+    finally:
+        conn.close()
 
 def create_user(username, password, role='user'):
     username = username.strip().lower()
     hashed_password = generate_password_hash(password)
     conn = get_db_connection()
+    if not conn: return False
+    
     try:
-        conn.execute(
-            'INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)',
-            (username, hashed_password, role)
-        )
+        with conn.cursor() as cursor:
+            cursor.execute(
+                'INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s)',
+                (username, hashed_password, role)
+            )
         conn.commit()
         return True
-    except sqlite3.IntegrityError:
+    except psycopg2.IntegrityError:
+        conn.rollback()
+        return False
+    except Exception as e:
+        print(f"Error creating user: {e}")
+        conn.rollback()
         return False
     finally:
         conn.close()
@@ -90,95 +98,152 @@ def create_user(username, password, role='user'):
 def get_user(username):
     username = username.strip().lower()
     conn = get_db_connection()
-    user = conn.execute('SELECT * FROM users WHERE username = ?', (username,)).fetchone()
-    conn.close()
-    return user
+    if not conn: return None
+    
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('SELECT * FROM users WHERE username = %s', (username,))
+            user = cursor.fetchone()
+            return user
+    finally:
+        conn.close()
 
 def get_all_users():
     conn = get_db_connection()
-    # Query details including storage metrics
-    users = conn.execute('''
-        SELECT u.id, u.username, u.role, u.excel_count, u.word_count, 
-               COALESCE(SUM(h.filesize), 0) as storage_used 
-        FROM users u 
-        LEFT JOIN history h ON u.id = h.user_id 
-        GROUP BY u.id
-    ''').fetchall()
-    conn.close()
-    return users
+    if not conn: return []
+    
+    try:
+        with conn.cursor() as cursor:
+            # Query details including storage metrics
+            cursor.execute('''
+                SELECT u.id, u.username, u.role, u.excel_count, u.word_count, 
+                       COALESCE(SUM(h.filesize), 0) as storage_used 
+                FROM users u 
+                LEFT JOIN history h ON u.id = h.user_id 
+                GROUP BY u.id
+                ORDER BY u.id ASC
+            ''')
+            return cursor.fetchall()
+    finally:
+        conn.close()
 
 def delete_user(user_id):
     conn = get_db_connection()
-    conn.execute('DELETE FROM users WHERE id = ?', (user_id,))
-    conn.commit()
-    conn.close()
+    if not conn: return
+    
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('DELETE FROM users WHERE id = %s', (user_id,))
+        conn.commit()
+    finally:
+        conn.close()
 
 def update_password(user_id, new_password):
     hashed_password = generate_password_hash(new_password)
     conn = get_db_connection()
-    conn.execute('UPDATE users SET password_hash = ? WHERE id = ?', (hashed_password, user_id))
-    conn.commit()
-    conn.close()
+    if not conn: return
+    
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('UPDATE users SET password_hash = %s WHERE id = %s', (hashed_password, user_id))
+        conn.commit()
+    finally:
+        conn.close()
 
 def increment_generation_count(username, excel_inc=0, word_inc=0):
     username = username.strip().lower()
     conn = get_db_connection()
-    conn.execute('''
-        UPDATE users 
-        SET excel_count = excel_count + ?, 
-            word_count = word_count + ? 
-        WHERE username = ?
-    ''', (excel_inc, word_inc, username))
-    conn.commit()
-    conn.close()
+    if not conn: return
+    
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('''
+                UPDATE users 
+                SET excel_count = excel_count + %s, 
+                    word_count = word_count + %s 
+                WHERE username = %s
+            ''', (excel_inc, word_inc, username))
+        conn.commit()
+    finally:
+        conn.close()
 
 def add_history_record(user_id, filename, filepath, filesize, file_type):
     conn = get_db_connection()
-    conn.execute('''
-        INSERT INTO history (user_id, filename, filepath, filesize, file_type)
-        VALUES (?, ?, ?, ?, ?)
-    ''', (user_id, filename, filepath, filesize, file_type))
-    conn.commit()
-    conn.close()
+    if not conn: return
+    
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('''
+                INSERT INTO history (user_id, filename, filepath, filesize, file_type)
+                VALUES (%s, %s, %s, %s, %s)
+            ''', (user_id, filename, filepath, filesize, file_type))
+        conn.commit()
+    finally:
+        conn.close()
 
 def get_user_history(user_id):
     conn = get_db_connection()
-    history = conn.execute('''
-        SELECT filename, filesize, file_type, timestamp 
-        FROM history 
-        WHERE user_id = ? 
-        ORDER BY timestamp DESC
-    ''', (user_id,)).fetchall()
-    conn.close()
-    return history
+    if not conn: return []
+    
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute('''
+                SELECT filename, filesize, file_type, timestamp 
+                FROM history 
+                WHERE user_id = %s 
+                ORDER BY timestamp DESC
+            ''', (user_id,))
+            history = cursor.fetchall()
+            
+            # Since psycopg2 returns datetime objects for TIMESTAMP columns, 
+            # we need to convert them to strings to be compatible with our Jinja filter
+            result = []
+            for row in history:
+                row_dict = dict(row)
+                if row_dict['timestamp']:
+                    row_dict['timestamp'] = row_dict['timestamp'].strftime('%Y-%m-%d %H:%M:%S')
+                result.append(row_dict)
+            return result
+    finally:
+        conn.close()
 
 def enforce_user_quota(user_id):
     MAX_QUOTA = 50 * 1024 * 1024 # 50 Megabytes in bytes
     conn = get_db_connection()
+    if not conn: return
     
-    # Calculate current size
-    row = conn.execute('SELECT SUM(filesize) as total_size FROM history WHERE user_id = ?', (user_id,)).fetchone()
-    total_size = row['total_size'] or 0
-    
-    if total_size > MAX_QUOTA:
-        # Fetch files starting from the oldest
-        old_files = conn.execute('SELECT id, filepath, filesize, filename FROM history WHERE user_id = ? ORDER BY timestamp ASC', (user_id,)).fetchall()
-        for f in old_files:
-            if total_size <= MAX_QUOTA:
-                break
+    try:
+        with conn.cursor() as cursor:
+            # Calculate current size
+            cursor.execute('SELECT SUM(filesize) as total_size FROM history WHERE user_id = %s', (user_id,))
+            row = cursor.fetchone()
+            total_size = row['total_size'] if row['total_size'] else 0
             
-            # Delete physical file
-            path = f['filepath']
-            if os.path.exists(path):
-                try:
-                    os.remove(path)
-                    print(f"Quota Enforcement: Deleted local file {f['filename']}")
-                except Exception as e:
-                    print(f"Failed to delete file {path} during quota check: {e}")
-            
-            # Delete record
-            conn.execute('DELETE FROM history WHERE id = ?', (f['id'],))
-            conn.commit()
-            total_size -= f['filesize']
-            
-    conn.close()
+            if total_size > MAX_QUOTA:
+                # Fetch files starting from the oldest
+                cursor.execute('SELECT id, filepath, filesize, filename FROM history WHERE user_id = %s ORDER BY timestamp ASC', (user_id,))
+                old_files = cursor.fetchall()
+                
+                for f in old_files:
+                    if total_size <= MAX_QUOTA:
+                        break
+                    
+                    # Delete physical file
+                    path = f['filepath']
+                    if os.path.exists(path):
+                        try:
+                            os.remove(path)
+                            print(f"Quota Enforcement: Deleted local file {f['filename']}")
+                        except Exception as e:
+                            print(f"Failed to delete file {path} during quota check: {e}")
+                    
+                    # Delete record
+                    cursor.execute('DELETE FROM history WHERE id = %s', (f['id'],))
+                    total_size -= f['filesize']
+                
+        conn.commit()
+    except Exception as e:
+        print(f"Error enforcing quota: {e}")
+        conn.rollback()
+    finally:
+        conn.close()
