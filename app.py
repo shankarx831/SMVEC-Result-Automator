@@ -311,9 +311,16 @@ def generate():
         if worksheet.cell(row=r, column=col_name).value or worksheet.cell(row=r, column=col_reg).value:
             actual_student_count += 1
             
+    # Calculate actual max column by finding the last header (avoids ghost columns)
+    actual_max_col = 3
+    for c in range(worksheet.max_column, 0, -1):
+        if worksheet.cell(row=1, column=c).value and str(worksheet.cell(row=1, column=c).value).strip():
+            actual_max_col = c
+            break
+            
     # Track dynamic subjects to align columns perfectly
     subject_cols = {}
-    current_max_col = worksheet.max_column
+    current_max_col = actual_max_col
     sgpa_tracker = {}
     
     processed_count = 0
