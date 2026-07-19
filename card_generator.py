@@ -87,6 +87,10 @@ def fetch_and_parse_result(session, portal_url, reg_no, dob_formatted, submit_bt
 
     r = session.post(portal_url, data=payload, headers=headers, timeout=12)
     soup = BeautifulSoup(r.text, 'html.parser')
+    with open("actual_dump.html", "w") as f:
+        f.write(soup.prettify())
+
+
 
     table = soup.find('table')
     if not table:
@@ -132,13 +136,16 @@ def fetch_and_parse_result(session, portal_url, reg_no, dob_formatted, submit_bt
 
     sgpa = ""
     for el in soup.find_all(string=lambda t: t and "SGPA" in t):
-        clean_t = el.strip()
-        if ":" in clean_t:
-            sgpa = clean_t.split(":")[-1].strip()
-        else:
-            sgpa = clean_t
-        if sgpa:
-            break
+        parent_div = el.find_parent('div')
+        if parent_div:
+            sgpa_text = parent_div.get_text(separator=" ").strip()
+            if ":" in sgpa_text:
+                sgpa = sgpa_text.split(":")[-1].strip()
+            else:
+                # Fallback if no colon, just try to get the next sibling or text
+                sgpa = sgpa_text.replace("SGPA", "").strip()
+            if sgpa:
+                break
 
     meta_info = {
         "exam_title": exam_title,
@@ -237,10 +244,10 @@ def draw_result_card(reg_no, name, meta_info, rows, sgpa, out_path):
     table_left = 34
     table_right = width - 34
     
-    # Column widths: Sem (50), Subject Code (130), Subject Name (470), Point (65), Grade Point (95), Result (80), Scrollbar (22)
-    col_widths = [50, 130, 470, 65, 95, 80, 22]
+    # Column widths: Sem (50), Subject Code (130), Subject Name (492), Point (65), Grade Point (95), Result (80)
+    col_widths = [50, 130, 492, 65, 95, 80]
     col_x = [table_left]
-    for w in col_widths[:-1]:
+    for w in col_widths:
         col_x.append(col_x[-1] + w)
     
     # Table Header Box (#0d2366)
@@ -260,14 +267,6 @@ def draw_result_card(reg_no, name, meta_info, rows, sgpa, out_path):
             tx = col_x[i] + 12
         draw.text((tx, y + 12), h, fill="white", font=f_table_header)
     
-    # Scrollbar Header Track Box (rightmost 22px)
-    draw.line([col_x[6], y, col_x[6], y + header_table_height], fill="#3a5298", width=1)
-    draw.rectangle([col_x[6], y, table_right, y + header_table_height], fill="#e9ecef")
-    # Draw up arrow ^
-    arrow_x = col_x[6] + 11
-    arrow_y = y + 20
-    draw.polygon([(arrow_x, arrow_y - 4), (arrow_x - 4, arrow_y + 4), (arrow_x + 4, arrow_y + 4)], fill="#6c757d")
-    
     y += header_table_height
     
     # Table Rows
@@ -278,12 +277,9 @@ def draw_result_card(reg_no, name, meta_info, rows, sgpa, out_path):
         draw.rectangle([table_left, row_top, table_right, row_bottom], fill="white")
         draw.line([table_left, row_bottom, table_right, row_bottom], fill="#e0e0e0", width=1)
         
-        # Scrollbar vertical column
-        draw.rectangle([col_x[6], row_top, table_right, row_bottom], fill="#f8f9fa")
-        draw.line([col_x[6], row_top, col_x[6], row_bottom], fill="#e0e0e0", width=1)
-        
         # Cell values and vertical grid lines
         for i, val in enumerate(row):
+            if i >= len(col_widths): break
             if i > 0:
                 draw.line([col_x[i], row_top, col_x[i], row_bottom], fill="#e0e0e0", width=1)
             
@@ -293,9 +289,10 @@ def draw_result_card(reg_no, name, meta_info, rows, sgpa, out_path):
                 fill_color = "#1ab340" if val_str.upper() == "PASS" else "#dc3545"
                 cell_font = f_table_row_bold
             else:
-                fill_color = "#333333"
+                fill_color = "#444444"
                 cell_font = f_table_row
-            
+                
+            # Text alignment
             if i in [0, 3, 4, 5]:
                 tw = draw.textlength(val_str, font=cell_font)
                 tx = col_x[i] + (col_widths[i] - tw) // 2
@@ -306,17 +303,15 @@ def draw_result_card(reg_no, name, meta_info, rows, sgpa, out_path):
         
         y += row_height
     
-    # Scrollbar bottom arrow (in last row track or bottom box)
-    arrow_x = col_x[6] + 11
-    arrow_y = y - 18
-    draw.polygon([(arrow_x, arrow_y + 4), (arrow_x - 4, arrow_y - 4), (arrow_x + 4, arrow_y - 4)], fill="#6c757d")
-    
     # Outer box around entire table
     draw.rectangle([table_left, top_section_height, table_right, y], outline="#cccccc", width=1)
     
     # 6. SGPA Footer Row
     y += 18
-    sgpa_str = f"SGPA: {sgpa}"
+    if sgpa:
+        sgpa_str = f"SGPA: {sgpa}"
+    else:
+        sgpa_str = "SGPA:"
     sw = draw.textlength(sgpa_str, font=f_sgpa)
     tx_sgpa = table_right - sw - 5
     draw.text((tx_sgpa, y), sgpa_str, fill="#112c80", font=f_sgpa)

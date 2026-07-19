@@ -329,7 +329,6 @@ def generate():
             print(f"Failed to enforce user quota: {e}")
 
     finally:
-        driver.quit()
         processing_status = "Idle"
 
     # Increment metrics in DB
