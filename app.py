@@ -54,8 +54,10 @@ from functools import wraps
 from werkzeug.security import check_password_hash
 import db
 from dotenv import load_dotenv
-import requests
+import functools
 import re
+import urllib3
+import requests
 from datetime import datetime, timedelta
 import card_generator
 
