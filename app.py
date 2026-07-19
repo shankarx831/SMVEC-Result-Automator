@@ -242,13 +242,26 @@ def generate():
     idx = 2
     num_rows = worksheet.max_row
     
+    # Auto-detect columns
+    col_name = 1
+    col_reg = 2
+    col_dob = 3
+    for c in range(1, worksheet.max_column + 1):
+        header = str(worksheet.cell(row=1, column=c).value).lower()
+        if 'name' in header:
+            col_name = c
+        elif 'register' in header or 'reg' in header:
+            col_reg = c
+        elif 'dob' in header or 'date of birth' in header or 'birth' in header:
+            col_dob = c
+    
     try:
         while idx <= num_rows:
-            name = worksheet.cell(row=idx, column=1).value
-            reg_no = worksheet.cell(row=idx, column=2).value
-            dob = worksheet.cell(row=idx, column=3).value
+            name = worksheet.cell(row=idx, column=col_name).value
+            reg_no = worksheet.cell(row=idx, column=col_reg).value
+            dob = worksheet.cell(row=idx, column=col_dob).value
 
-            if not reg_no or not dob:
+            if not name and not reg_no:
                 idx += 1
                 continue
 
